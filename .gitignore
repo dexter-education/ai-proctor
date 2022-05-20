@@ -162,6 +162,9 @@ cython_debug/
 # models
 *.onnx
 *openvino_model
+*pt
+*pth
+*pkl
 
 # yolov5 runs
 runs/
