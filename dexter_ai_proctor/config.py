@@ -7,7 +7,8 @@ def get_config():
             'frame_counter': [0, 0],
             'required_counts': [1, 1],
             'level': ['yellow', 'red'],
-            'message': ['face count violation', 'face count violation']
+            'message': ['face count violation', 'face count violation'],
+            'confidence': 0.95
             },
         'person': {
             'count': 1, 
@@ -15,7 +16,8 @@ def get_config():
             'frame_counter': [0, 0],
             'required_counts': [1, 1],
             'level': ['yellow', 'red'],
-            'message': ['person count violation', 'person count violation']
+            'message': ['person count violation', 'person count violation'],
+            'confidence': 0.25
             },
         'mobile phone': {
             'count': 0,
@@ -39,7 +41,8 @@ def get_config():
             'frame_counter': [0],
             'required_counts': [0],
             'level': ['yellow'],
-            'message': ['face not centered']
+            'message': ['face not centered'],
+            'center_ratio': 0.25
         },
         'mouth open': {
             'count': 0,
@@ -47,7 +50,9 @@ def get_config():
             'frame_counter': [0],
             'required_counts': [0],
             'level': ['yellow'],
-            'message': ['mouth open']
+            'message': ['mouth open'],
+            'confidence': 0.5,
+            'pixels_required': 30
         },
         'mouth hidden': {
             'count': 0,
@@ -55,7 +60,8 @@ def get_config():
             'frame_counter': [0],
             'required_counts': [0],
             'level': ['yellow'],
-            'message': ['mouth hidden']
+            'message': ['mouth hidden'],
+            'pixels_required': 20
         },
         'yaw': {
             'count': 0,
@@ -63,7 +69,9 @@ def get_config():
             'frame_counter': [0],
             'required_counts': [0],
             'level': ['yellow'],
-            'message': ['yaw violation']
+            'message': ['yaw violation'],
+            'confidence': 0.5,
+            'angle': 30
         },
         'pitch': {
             'count': 0,
@@ -71,7 +79,8 @@ def get_config():
             'frame_counter': [0],
             'required_counts': [0],
             'level': ['yellow'],
-            'message': ['pitch violation']
+            'message': ['pitch violation'],
+            'angle': 20
         },
         'roll': {
             'count': 0,
@@ -79,7 +88,8 @@ def get_config():
             'frame_counter': [0],
             'required_counts': [0],
             'level': ['yellow'],
-            'message': ['roll violation']
+            'message': ['roll violation'],
+            'angle': 20
         },
     }
     return Dict

@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from mtcnn.mtcnn import MTCNN
 from torchvision.transforms import transforms
 
+from . import config
 from .models.common import DetectMultiBackend
 from .utils.augmentations import letterbox
 from .utils.general import check_img_size, non_max_suppression
@@ -15,12 +16,12 @@ from .utils import stable_hopenetlite
 from .utils.torch_utils import select_device
 
 torch.cuda.empty_cache()
+config_dict = config.get_config()
 
 class yolov5_infer_single:
 
     def __init__(self,
                  weights, # path to weights
-                 confidence=0.25,
                  imgsz=640,  # inference size (pixels)
                  half=False  # use FP16 half-precision inference
                  ):
@@ -30,7 +31,7 @@ class yolov5_infer_single:
         self.model = DetectMultiBackend(weights, device=self.device, dnn=False, fp16=half)
         self.stride, self.names, self.pt = self.model.stride, self.model.names, self.model.pt
         self.imgsz = check_img_size(imgsz, s=self.stride)  # check image size
-        self.confidence = confidence
+        self.confidence = config_dict['person']['confidence']
 
         # Run inference
         self.model.warmup(imgsz=(1, 3, self.imgsz, self.imgsz))  # warmup
@@ -67,10 +68,10 @@ class yolov5_infer_single:
 class mtcnn_face:
     """Class to count faces in the image and if face is centered or not
     """
-    def __init__(self, confidence=0.95, center=0.25):
+    def __init__(self):
         self.model = MTCNN()
-        self.confidence = confidence
-        self.center = center
+        self.confidence = config_dict['face']['confidence']
+        self.center = config_dict['face center']['center_ratio']
 
     def detect(self, img):
 
@@ -97,9 +98,9 @@ class mtcnn_face:
 class face_segmentation:
     """Class to run face segmentation model
     """
-    def __init__(self, weights, confidence=0.5):
+    def __init__(self, weights):
         self.model = BiSeNet(n_classes=19)
-        self.confidence = confidence
+        self.confidence = config_dict['mouth open']['confidence']
         self.device = select_device('')
         if torch.cuda.is_available():
             self.model.cuda()
@@ -123,17 +124,17 @@ class face_segmentation:
         mask_mouth = mask.copy()
         mask[mask != 11] = 0
         mouth_pixels = int(np.sum(mask) / 11)
-        mouth_open = mouth_pixels > 30
+        mouth_open = mouth_pixels > config_dict['mouth open']['pixels_required']
         
         mask_mouth[(mask_mouth < 11) | (mask_mouth > 13)] = 0
-        mouth_hidden = np.sum(mask_mouth)/12 < 20
+        mouth_hidden = np.sum(mask_mouth)/12 < config_dict['mouth hidden']['pixels_required']
 
         return  {'mouth open': int(mouth_open), 'mouth hidden': int(mouth_hidden)}
 
 class head_pose:
     """Class to run head pose estimation model
     """
-    def __init__(self, weights, confidence=0.5):
+    def __init__(self, weights):
         self.model = stable_hopenetlite.shufflenet_v2_x1_0()
         self.device = select_device('')
         if torch.cuda.is_available():
@@ -142,7 +143,7 @@ class head_pose:
         else:
             self.model.load_state_dict(torch.load(weights, map_location='cpu'), strict=False)
         self.model.eval()
-        self.confidence = confidence
+        self.confidence = config_dict['yaw']['confidence']
         self.idx_tensor = [idx for idx in range(66)]
         self.idx_tensor = torch.FloatTensor(self.idx_tensor).to(self.device)
 
@@ -180,4 +181,6 @@ class head_pose:
         yaw_predicted = torch.sum(yaw_predicted.data[0] * self.idx_tensor) * 3 - 99
         pitch_predicted = torch.sum(pitch_predicted.data[0] * self.idx_tensor) * 3 - 99
         roll_predicted = torch.sum(roll_predicted.data[0] * self.idx_tensor) * 3 - 99
-        return {'yaw': int(abs(yaw_predicted.item()) > 30), 'pitch': int(abs(pitch_predicted.item()) > 20), 'roll': int(abs(roll_predicted.item()) > 20)} # dictionary returning if head is tilted in any direction
+        return {'yaw': int(abs(yaw_predicted.item()) > config_dict['yaw']['angle']),
+                'pitch': int(abs(pitch_predicted.item()) > config_dict['pitch']['angle']),
+                'roll': int(abs(roll_predicted.item()) > config_dict['roll']['angle'])} # dictionary returning if head is tilted in any direction
