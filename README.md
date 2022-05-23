@@ -15,7 +15,7 @@ Library to generate flags when running proctoring tests. The current version sup
 The library can be installed via pip. Look for the latest version in the `dist` folder and install the wheel file as:
 
 ```
-pip install dexter-ai-proctor-0.1.0-py3-none-any.whl
+pip install dexter-ai-proctor-0.2.0-py3-none-any.whl
 ```
     
 Currently, install requires were not added to the setup.py so the requirements will need to be installed from the requirements.txt file. This will be sorted out in a later release after removing unneeded dependencies.
