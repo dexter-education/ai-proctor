@@ -10,7 +10,7 @@ class runner:
         
         self.frame_num = frame_num
         self.config_dict = config.get_config()
-        if mtcnn is not None and head_pose_model is not None:
+        if mtcnn is not None or head_pose_model is not None:
             self.mtcnn_obj = detector.mtcnn_face()
         if yolov5_model is not None:
             self.yolov5_obj = detector.yolov5_infer_single(yolov5_model)
