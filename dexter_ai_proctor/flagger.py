@@ -1,5 +1,3 @@
-import cv2
-
 class flagger:
     """Class to count and raise flags
     """
@@ -8,15 +6,18 @@ class flagger:
         self.config_dict = config_dict
         self.original_config_dict = config_dict
         
-    def flag(self, level, frame_num, message):
-        """Function to raise the flag
+    # def flag(self, level, frame_num, message):
+    #     """Function to raise the flag
 
-        Args:
-            level (string): Level of the flag, i.e. red or yellow
-            frame_num (int): Frame number at which violation starts
-            message (string): Message to be raised
-        """
-        print(level, frame_num, message)
+    #     Args:
+    #         level (string): Level of the flag, i.e. red or yellow
+    #         frame_num (int): Frame number at which violation starts
+    #         message (string): Message to be raised
+
+    #     Returns:
+    #         flag level, number and message
+    #     """
+    #     return (level, frame_num, message)
 
     def add_count(self, Dict):
         """Function to add the count of the current frame
@@ -32,13 +33,23 @@ class flagger:
 
         Args:
             frame_num (int): current frame number
+
+        Returns:
+            list containing flag level, frame number and message
         """
         
         for key, value in self.config_dict.items():
+            flag = {
+                'severity': [],
+                'frame_num': [],
+                'message': []
+            }
             for i in range(len(value['min_continous_frames'])):
 
                 if value['frame_counter'][i] >= value['min_continous_frames'][i]:
-                    self.flag(value['level'][i], frame_num - value['min_continous_frames'][i], value['message'][i])
+                    flag['severity'].append(value['level'][i])
+                    flag['frame_num'].append(frame_num - value['min_continous_frames'][i])
+                    flag['message'].append(value['message'][i])
                     self.config_dict[key]['frame_counter'][i] = 0
                     # if value['level'][i] == 'yellow':
                     #     cv2.putText(img, value['message'][i], (140, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
@@ -50,3 +61,5 @@ class flagger:
                 else:
                     self.config_dict[key]['frame_counter'][i] = 0
                 self.config_dict[key]['count'] = self.original_config_dict[key]['count'] # reset the count to original value
+            
+            return flag
