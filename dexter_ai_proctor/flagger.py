@@ -38,12 +38,12 @@ class flagger:
             list containing flag level, frame number and message
         """
         
+        flag = {
+                    'severity': [],
+                    'frame_num': [],
+                    'message': []
+                }
         for key, value in self.config_dict.items():
-            flag = {
-                'severity': [],
-                'frame_num': [],
-                'message': []
-            }
             for i in range(len(value['min_continous_frames'])):
 
                 if value['frame_counter'][i] >= value['min_continous_frames'][i]:
@@ -62,4 +62,4 @@ class flagger:
                     self.config_dict[key]['frame_counter'][i] = 0
                 self.config_dict[key]['count'] = self.original_config_dict[key]['count'] # reset the count to original value
             
-            return flag
+        return flag

@@ -88,7 +88,6 @@ class mtcnn_face:
                 face_center = 0
             else:
                 face_center = 1
-            print(cx, cy)
         
         else:
             x0, y0, x1, y1 = 0, 0, 0, 0

@@ -37,8 +37,9 @@ class runner:
             self.count_obj.add_count(self.head_obj.detect(img, self.face))
     
     def check_counts(self):
-        self.count_obj.check_counts(self.frame_num)
+        flag = self.count_obj.check_counts(self.frame_num)
         self.frame_num += 1
+        return flag
 
 
 if __name__ == "__main__":
@@ -50,7 +51,8 @@ if __name__ == "__main__":
         ret, img = cap.read()
         if ret:
             runner_obj.run_yolov5(img)
-            runner_obj.check_counts()
+            flag = runner_obj.check_counts()
+            print(flag)
             cv2.imshow('img', img)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
