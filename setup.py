@@ -22,5 +22,15 @@ setuptools.setup(
     ],
     packages=setuptools.find_packages(),
     python_requires=">=3.7",
-    include_package_data=True
+    include_package_data=True,
+    install_requires=[
+        'torch',
+        'torchvision',
+        'mtcnn',
+        'tensorflow',
+        'pandas',
+        'PyYAML',
+        'tqdm',
+        'matplotlib'
+    ],
     )
