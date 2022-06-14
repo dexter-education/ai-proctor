@@ -333,3 +333,4 @@ if __name__ == '__main__':
                 _ = Model(cfg)
             except Exception as e:
                 print(f'Error in {cfg}: {e}')
+

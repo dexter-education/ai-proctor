@@ -1,16 +1,14 @@
 import cv2
 import numpy as np
 from PIL import Image
-from math import cos, sin
 import torch
 import torch.nn.functional as F
-from mtcnn.mtcnn import MTCNN
 from torchvision.transforms import transforms
 
-from . import config
+import config
 from .models.common import DetectMultiBackend
 from .utils.augmentations import letterbox
-from .utils.general import check_img_size, non_max_suppression
+from .utils.general import check_img_size, non_max_suppression, scale_coords, xyxy2xywh
 from .utils.model_celebmask import BiSeNet
 from .utils import stable_hopenetlite
 from .utils.torch_utils import select_device
@@ -65,34 +63,69 @@ class yolov5_infer_single:
         
         return dict(zip(['person', 'mobile phone', 'laptop'], list(labels_dict.values()))) # list returning counts of person, mobile phone and laptop
 
-class mtcnn_face:
-    """Class to count faces in the image and if face is centered or not
-    """
-    def __init__(self):
-        self.model = MTCNN()
+class yolov5_face:
+
+    def __init__(self,
+                 weights, # path to weights
+                 imgsz=640,  # inference size (pixels)
+                 half=False  # use FP16 half-precision inference
+                 ):
+        # Load model
+        self.half = half
+        self.device = select_device('')
+        self.model = DetectMultiBackend(weights, device=self.device, dnn=False, fp16=half)
+        self.stride, self.names, self.pt = self.model.stride, self.model.names, self.model.pt
+        self.imgsz = check_img_size(imgsz, s=self.stride)  # check image size
         self.confidence = config_dict['face']['confidence']
         self.center = config_dict['face center']['center_ratio']
 
+        # Run inference
+        self.model.warmup(imgsz=(1, 3, self.imgsz, self.imgsz))  # warmup
+
+    @torch.no_grad()
     def detect(self, img):
 
-        h, w = img.shape[:2]
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        res = self.model.detect_faces(img_rgb)
-        face_count = sum([1 if face['confidence'] > self.confidence else 0 for face in res])
-        if face_count != 0:
-            x0, y0, w1, h1 = res[0]['box']
-            x1, y1 = x0 + w1, y0 + h1
-            cx = ((x0 + x1)/2) / w
-            cy = (y0 + y1)/2 / h
-            if self.center < cx < (1 - self.center) and self.center < cy < (1 - self.center):
-                face_center = 0
+        im = letterbox(img, self.imgsz, stride=self.stride, auto=self.pt)[0]
+        im = im.transpose((2, 0, 1))[::-1]  # HWC to CHW, BGR to RGB
+        im = np.ascontiguousarray(im)
+        im = torch.from_numpy(im).to(self.device)
+        im = im.half() if self.half else im.float()  # uint8 to fp16/32
+        im /= 255  # 0 - 255 to 0.0 - 1.0
+        if len(im.shape) == 3:
+            im = im[None]  # expand for batch dim
+        gn = torch.tensor(img.shape)[[1, 0, 1, 0]]  # normalization gain whwh
+        # Inference
+        pred = self.model(im, augment=False, visualize=False)
+        # NMS
+        pred = non_max_suppression(pred, self.confidence, 0.45, None, False, max_det=100)
+        labels_dict = {0: 0} # face
+        for det in pred:  # per image
+            if len(det):
+                det[:, :4] = scale_coords(im.shape[2:], det[:, :4], img.shape).round()
+                det = det.cpu().numpy()
+                # Print results
+                for c in np.unique(det[:, -1]):
+                    c = int(c)
+                    if c in labels_dict.keys():
+                        n = (det[:, -1] == c).sum()  # detections per class
+                        labels_dict[c] = n
+
+                for *xyxy, _, _ in reversed(det):
+                    x0, y0, x1, y1 = xyxy[0], xyxy[1], xyxy[2], xyxy[3]
+                    xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()
+                    cx = xywh[0]
+                    cy = xywh[1]
+                    if self.center < cx < (1 - self.center) and self.center < cy < (1 - self.center):
+                        face_center = 0
+                    else:
+                        face_center = 1
+            
             else:
-                face_center = 1
-        
-        else:
-            x0, y0, x1, y1 = 0, 0, 0, 0
-            face_center = 0
-        return {'face': face_count, 'face center': face_center}, [x0, y0, x1, y1] # dictionary returning count of faces and if face centered; along with face bounding box
+                face_center = 0
+                x0, y0, x1, y1 = 0, 0, 0, 0
+
+        return {'face': labels_dict[0], 'face center': face_center}, [x0, y0, x1, y1] # dictionary returning count of faces and if face centered; along with face bounding box
+
         
 class face_segmentation:
     """Class to run face segmentation model

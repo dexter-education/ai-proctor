@@ -1,17 +1,17 @@
 import cv2
 
-from . import config
+import config
 from . import detector
 from . import flagger
 
 class runner:
 
-    def __init__(self, mtcnn=None, yolov5_model=None, face_seg_model=None, head_pose_model=None, frame_num=0):
+    def __init__(self, yolov5_face=None, yolov5_model=None, face_seg_model=None, head_pose_model=None, frame_num=0):
         
         self.frame_num = frame_num
         self.config_dict = config.get_config()
-        if mtcnn is not None or head_pose_model is not None:
-            self.mtcnn_obj = detector.mtcnn_face()
+        if yolov5_face is not None or head_pose_model is not None:
+            self.yolov5_face_obj = detector.yolov5_face(yolov5_face)
         if yolov5_model is not None:
             self.yolov5_obj = detector.yolov5_infer_single(yolov5_model)
         if face_seg_model is not None:
@@ -21,8 +21,8 @@ class runner:
         self.count_obj = flagger.flagger(self.config_dict)
         self.face = None
 
-    def run_mtcnn(self, img):
-        Dict, self.face = self.mtcnn_obj.detect(img)
+    def run_yolov5_face(self, img):
+        Dict, self.face = self.yolov5_face_obj.detect(img)
         self.count_obj.add_count(Dict)
 
     def run_yolov5(self, img):
