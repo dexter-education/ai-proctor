@@ -60,7 +60,7 @@ class yolov5_infer_single:
                     if c in labels_dict.keys():
                         n = (det[:, -1] == c).sum()  # detections per class
                         labels_dict[c] = n
-        
+
         return dict(zip(['person', 'mobile phone', 'laptop'], list(labels_dict.values()))) # list returning counts of person, mobile phone and laptop
 
 class yolov5_face:
@@ -119,14 +119,14 @@ class yolov5_face:
                         face_center = 0
                     else:
                         face_center = 1
-            
+
             else:
                 face_center = 0
                 x0, y0, x1, y1 = 0, 0, 0, 0
 
         return {'face': labels_dict[0], 'face center': face_center}, [x0, y0, x1, y1] # dictionary returning count of faces and if face centered; along with face bounding box
 
-        
+
 class face_segmentation:
     """Class to run face segmentation model
     """
@@ -157,7 +157,7 @@ class face_segmentation:
         mask[mask != 11] = 0
         mouth_pixels = int(np.sum(mask) / 11)
         mouth_open = mouth_pixels > config_dict['mouth open']['pixels_required']
-        
+
         mask_mouth[(mask_mouth < 11) | (mask_mouth > 13)] = 0
         mouth_hidden = np.sum(mask_mouth)/12 < config_dict['mouth hidden']['pixels_required']
 
@@ -189,10 +189,10 @@ class head_pose:
         x_max += 50
         y_min -= 50
         y_max += 30
-        x_min = max(x_min, 0)
-        y_min = max(y_min, 0)
-        x_max = min(img.shape[1], x_max)
-        y_max = min(img.shape[0], y_max)
+        x_min = int(max(x_min, 0))
+        y_min = int(max(y_min, 0))
+        x_max = int(min(img.shape[1], x_max))
+        y_max = int(min(img.shape[0], y_max))
         # Crop face loosely
         cv2_frame = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = cv2_frame[y_min:y_max,x_min:x_max]
