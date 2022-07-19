@@ -3,23 +3,41 @@ import cv2
 import config
 from . import detector
 from . import flagger
+from . import load_models
+
+
+def get_yolov5(model_path, imgsz=640, half=False):
+    model, device, stride, names, pt, imgsz, half = load_models.load_yolov5(model_path, imgsz, half)
+    return model, device, stride, names, pt, imgsz, half
+
+def get_face_segmentation(model_path):
+    model, device = load_models.load_face_segmentation(model_path)
+    return model, device
+
+def get_head_pose(model_path):
+    model, device, idx_tensor = load_models.load_head_pose(model_path)
+    return model, device, idx_tensor
 
 class runner:
 
-    def __init__(self, yolov5_face=None, yolov5_model=None, face_seg_model=None, head_pose_model=None, frame_num=0):
+    def __init__(self, frame_num=0):
         
         self.frame_num = frame_num
         self.config_dict = config.get_config()
-        if yolov5_face is not None or head_pose_model is not None:
-            self.yolov5_face_obj = detector.yolov5_face(yolov5_face)
-        if yolov5_model is not None:
-            self.yolov5_obj = detector.yolov5_infer_single(yolov5_model)
-        if face_seg_model is not None:
-            self.seg_obj = detector.face_segmentation(weights=face_seg_model)
-        if head_pose_model is not None:
-            self.head_obj = detector.head_pose(head_pose_model)
         self.count_obj = flagger.flagger(self.config_dict)
         self.face = None
+    
+    def init_yolov5_face(self, model, device, stride, names, pt, imgsz, half):
+        self.yolov5_face_obj = detector.yolov5_face(model, device, stride, names, pt, imgsz, half)
+    
+    def init_yolov5(self, model, device, stride, names, pt, imgsz, half):
+        self.yolov5_obj = detector.yolov5_infer_single(model, device, stride, names, pt, imgsz, half)
+
+    def init_face_segmentation(self, model, device):
+        self.seg_obj = detector.face_segmentation(model, device)
+    
+    def init_head_pose(self, model, device, idx_tensor):
+        self.head_obj = detector.head_pose(model, device, idx_tensor)
 
     def run_yolov5_face(self, img):
         Dict, self.face = self.yolov5_face_obj.detect(img)
