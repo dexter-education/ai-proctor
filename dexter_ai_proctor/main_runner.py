@@ -3,41 +3,22 @@ import cv2
 import config
 from . import detector
 from . import flagger
-from . import load_models
 
-
-def get_yolov5(model_path, imgsz=640, half=False):
-    model, device, stride, names, pt, imgsz, half = load_models.load_yolov5(model_path, imgsz, half)
-    return model, device, stride, names, pt, imgsz, half
-
-def get_face_segmentation(model_path):
-    model, device = load_models.load_face_segmentation(model_path)
-    return model, device
-
-def get_head_pose(model_path):
-    model, device, idx_tensor = load_models.load_head_pose(model_path)
-    return model, device, idx_tensor
+def model_objects(yolov5_face=None, yolov5_model=None, face_seg_model=None, head_pose_model=None):
+    yolov5_face_obj = detector.yolov5_face(yolov5_face) if yolov5_face is not None or head_pose_model is not None else None
+    yolov5_obj = detector.yolov5_infer_single(yolov5_model) if yolov5_model is not None else None
+    seg_obj = detector.face_segmentation(weights=face_seg_model) if face_seg_model is not None else None
+    head_obj = detector.head_pose(head_pose_model) if head_pose_model is not None else None
+    return yolov5_face_obj, yolov5_obj, seg_obj, head_obj
 
 class runner:
 
-    def __init__(self, frame_num=0):
-        
+    def __init__(self, model_objects, frame_num=0):
         self.frame_num = frame_num
         self.config_dict = config.get_config()
         self.count_obj = flagger.flagger(self.config_dict)
         self.face = None
-    
-    def init_yolov5_face(self, model, device, stride, names, pt, imgsz, half):
-        self.yolov5_face_obj = detector.yolov5_face(model, device, stride, names, pt, imgsz, half)
-    
-    def init_yolov5(self, model, device, stride, names, pt, imgsz, half):
-        self.yolov5_obj = detector.yolov5_infer_single(model, device, stride, names, pt, imgsz, half)
-
-    def init_face_segmentation(self, model, device):
-        self.seg_obj = detector.face_segmentation(model, device)
-    
-    def init_head_pose(self, model, device, idx_tensor):
-        self.head_obj = detector.head_pose(model, device, idx_tensor)
+        self.yolov5_face_obj, self.yolov5_obj, self.seg_obj, self.head_obj = model_objects  # unpacking model objects
 
     def run_yolov5_face(self, img):
         Dict, self.face = self.yolov5_face_obj.detect(img)
@@ -63,8 +44,9 @@ class runner:
 if __name__ == "__main__":
 
     cap = cv2.VideoCapture(0)
-    runner_obj = runner(yolov5_model='yolov5s.pt')
-    
+    model_objs = main_runner.model_objects(yolov5_model='yolov5s.pt')
+    runner_obj = main_runner.runner(model_objs)
+
     while True:
         ret, img = cap.read()
         if ret:
@@ -77,5 +59,7 @@ if __name__ == "__main__":
 
         else:
             break
+
+
     cap.release()
     cv2.destroyAllWindows()

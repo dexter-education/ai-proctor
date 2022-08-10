@@ -6,8 +6,12 @@ import torch.nn.functional as F
 from torchvision.transforms import transforms
 
 import config
+from .models.common import DetectMultiBackend
 from .utils.augmentations import letterbox
-from .utils.general import non_max_suppression, scale_coords, xyxy2xywh
+from .utils.general import check_img_size, non_max_suppression, scale_coords, xyxy2xywh
+from .utils.model_celebmask import BiSeNet
+from .utils import stable_hopenetlite
+from .utils.torch_utils import select_device
 
 torch.cuda.empty_cache()
 config_dict = config.get_config()
@@ -15,32 +19,20 @@ config_dict = config.get_config()
 class yolov5_infer_single:
 
     def __init__(self,
-                 model, # path to weights
-                 device,
-                 stride,
-                 names,
-                 pt,
-                 imgsz,  # inference size (pixels)
-                 half,
+                 weights, # path to weights
+                 imgsz=640,  # inference size (pixels)
+                 half=False  # use FP16 half-precision inference
                  ):
-        """class to run inference on a single image
-
-        Args:
-            model (yolov5 model): model to run inference with
-            device (str): device to run inference on cuda or cpu
-            stride (int): stride of the model
-            names (list): labels of the model
-            pt (boolean): whether model is a pt file or not
-            imgsz (int): size of the image to run inference on
-        """
-        self.model = model
-        self.device = device
-        self.stride = stride
-        self.names = names
-        self.pt = pt
-        self.imgsz = imgsz
+        # Load model
         self.half = half
+        self.device = select_device('')
+        self.model = DetectMultiBackend(weights, device=self.device, dnn=False, fp16=half)
+        self.stride, self.names, self.pt = self.model.stride, self.model.names, self.model.pt
+        self.imgsz = check_img_size(imgsz, s=self.stride)  # check image size
         self.confidence = config_dict['person']['confidence']
+
+        # Run inference
+        self.model.warmup(imgsz=(1, 3, self.imgsz, self.imgsz))  # warmup
 
     @torch.no_grad()
     def detect(self, img):
@@ -74,33 +66,21 @@ class yolov5_infer_single:
 class yolov5_face:
 
     def __init__(self,
-                 model, # path to weights
-                 device,
-                 stride,
-                 names,
-                 pt,
-                 imgsz,  # inference size (pixels)
-                 half,
+                 weights, # path to weights
+                 imgsz=640,  # inference size (pixels)
+                 half=False  # use FP16 half-precision inference
                  ):
-        """class to run inference on a single image
-
-        Args:
-            model (yolov5 model): model to run inference with
-            device (str): device to run inference on cuda or cpu
-            stride (int): stride of the model
-            names (list): labels of the model
-            pt (boolean): whether model is a pt file or not
-            imgsz (int): size of the image to run inference on
-        """
-        self.model = model
-        self.device = device
-        self.stride = stride
-        self.names = names
-        self.pt = pt
-        self.imgsz = imgsz
+        # Load model
         self.half = half
-        self.confidence = config_dict['person']['confidence']
+        self.device = select_device('')
+        self.model = DetectMultiBackend(weights, device=self.device, dnn=False, fp16=half)
+        self.stride, self.names, self.pt = self.model.stride, self.model.names, self.model.pt
+        self.imgsz = check_img_size(imgsz, s=self.stride)  # check image size
+        self.confidence = config_dict['face']['confidence']
         self.center = config_dict['face center']['center_ratio']
+
+        # Run inference
+        self.model.warmup(imgsz=(1, 3, self.imgsz, self.imgsz))  # warmup
 
     @torch.no_grad()
     def detect(self, img):
@@ -150,15 +130,16 @@ class yolov5_face:
 class face_segmentation:
     """Class to run face segmentation model
     """
-    def __init__(self, model, device):
-        """
-        Args:
-            model (face segmentation model): model to run inference with
-            device (str): device to run inference on cuda or cpu
-        """
-        self.model = model
-        self.device = device
+    def __init__(self, weights):
+        self.model = BiSeNet(n_classes=19)
         self.confidence = config_dict['mouth open']['confidence']
+        self.device = select_device('')
+        if torch.cuda.is_available():
+            self.model.cuda()
+            self.model.load_state_dict(torch.load(weights))
+        else:
+            self.model.load_state_dict(torch.load(weights, map_location='cpu'))
+        self.model.eval()
 
     def detect(self, img):
         transform = transforms.Compose([
@@ -185,17 +166,18 @@ class face_segmentation:
 class head_pose:
     """Class to run head pose estimation model
     """
-    def __init__(self, model, device, idx_tensor):
-        """
-        Args:
-            model (head pose model): model to run inference with
-            device (str): device to run inference on cuda or cpu
-            idx_tensor (torch tensor): tensor of indices for the model
-        """
-        self.model = model
-        self.device = device
-        self.idx_tensor = idx_tensor
+    def __init__(self, weights):
+        self.model = stable_hopenetlite.shufflenet_v2_x1_0()
+        self.device = select_device('')
+        if torch.cuda.is_available():
+            self.model.cuda()
+            self.model.load_state_dict(torch.load(weights), strict=False)
+        else:
+            self.model.load_state_dict(torch.load(weights, map_location='cpu'), strict=False)
+        self.model.eval()
         self.confidence = config_dict['yaw']['confidence']
+        self.idx_tensor = [idx for idx in range(66)]
+        self.idx_tensor = torch.FloatTensor(self.idx_tensor).to(self.device)
 
     def detect(self, img, face):
         transformations = transforms.Compose([transforms.Scale(224),
